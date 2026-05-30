@@ -149,23 +149,53 @@ function setupPlayerName() {
 
 function openNameModal() {
   const playerName = localStorage.getItem("playerName") || "";
+  const modal = document.getElementById("nameModal");
+  const overlay = document.getElementById("modalOverlay");
 
   elements.playerNameInput.value = playerName;
   elements.nameError.textContent = "";
   elements.nameModal.hidden = false;
+
+  if (modal) {
+    modal.style.display = "grid";
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  if (overlay) {
+    overlay.style.display = "grid";
+  }
+
+  document.body.classList.add("modal-open");
   elements.playerNameInput.focus();
 }
 
 function closeNameModal() {
+  const modal = document.getElementById("nameModal");
+  const overlay = document.getElementById("modalOverlay");
+
   elements.nameModal.hidden = true;
+
+  if (modal) {
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  if (overlay) {
+    overlay.style.display = "none";
+  }
+
+  document.body.classList.remove("modal-open");
 }
 
 function confirmPlayerName() {
-  const name = elements.playerNameInput.value.trim();
+  const input = document.getElementById("playerNameInput");
+  const name = input ? input.value.trim() : "";
 
   if (name.length < 1) {
     elements.nameError.textContent = "昵称至少需要 1 个字符。";
-    elements.playerNameInput.focus();
+    if (input) {
+      input.focus();
+    }
     return;
   }
 
