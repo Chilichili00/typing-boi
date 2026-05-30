@@ -1,7 +1,7 @@
 const STORAGE_KEYS = {
   bestWpm: "gentleTypingTrainer.bestWpm",
   bestAccuracy: "gentleTypingTrainer.bestAccuracy",
-  displayName: "gentleTypingTrainer.displayName"
+  playerName: "playerName"
 };
 
 // Fill these values with your Supabase Project URL and public anon key.
@@ -65,6 +65,8 @@ const elements = {
   difficultySelect: document.querySelector("#difficultySelect"),
   levelLabel: document.querySelector("#levelLabel"),
   wordCount: document.querySelector("#wordCount"),
+  welcomeMessage: document.querySelector("#welcomeMessage"),
+  changeNameBtn: document.querySelector("#changeNameBtn"),
   nextTextBtn: document.querySelector("#nextTextBtn"),
   restartBtn: document.querySelector("#restartBtn"),
   typingSurface: document.querySelector("#typingSurface"),
@@ -86,13 +88,17 @@ const elements = {
   leaderboardStatus: document.querySelector("#leaderboardStatus"),
   leaderboardRows: document.querySelector("#leaderboardRows"),
   leaderboardFilterBtns: document.querySelectorAll(".filter-btn"),
-  refreshLeaderboardBtn: document.querySelector("#refreshLeaderboardBtn")
+  refreshLeaderboardBtn: document.querySelector("#refreshLeaderboardBtn"),
+  nameModal: document.querySelector("#nameModal"),
+  playerNameInput: document.querySelector("#playerNameInput"),
+  nameError: document.querySelector("#nameError"),
+  confirmNameBtn: document.querySelector("#confirmNameBtn")
 };
 
 function startApp() {
   renderBestScores();
-  elements.displayNameInput.value = localStorage.getItem(STORAGE_KEYS.displayName) || "";
   chooseRandomText();
+  setupPlayerName();
   bindEvents();
   loadLeaderboard();
 }
@@ -111,6 +117,13 @@ function bindEvents() {
   elements.typingInput.addEventListener("input", handleTyping);
   elements.submitScoreBtn.addEventListener("click", submitScore);
   elements.refreshLeaderboardBtn.addEventListener("click", loadLeaderboard);
+  elements.changeNameBtn.addEventListener("click", openNameModal);
+  elements.confirmNameBtn.addEventListener("click", confirmPlayerName);
+  elements.playerNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      confirmPlayerName();
+    }
+  });
 
   elements.leaderboardFilterBtns.forEach((button) => {
     button.addEventListener("click", () => {
@@ -119,6 +132,58 @@ function bindEvents() {
       loadLeaderboard();
     });
   });
+}
+
+function setupPlayerName() {
+  const playerName = localStorage.getItem("playerName");
+
+  if (playerName) {
+    applyPlayerName(playerName);
+    return;
+  }
+
+  updateWelcomeMessage("");
+  elements.displayNameInput.value = "";
+  openNameModal();
+}
+
+function openNameModal() {
+  const playerName = localStorage.getItem("playerName") || "";
+
+  elements.playerNameInput.value = playerName;
+  elements.nameError.textContent = "";
+  elements.nameModal.hidden = false;
+  elements.playerNameInput.focus();
+}
+
+function closeNameModal() {
+  elements.nameModal.hidden = true;
+}
+
+function confirmPlayerName() {
+  const name = elements.playerNameInput.value.trim();
+
+  if (name.length < 1) {
+    elements.nameError.textContent = "昵称至少需要 1 个字符。";
+    elements.playerNameInput.focus();
+    return;
+  }
+
+  localStorage.setItem("playerName", name);
+  applyPlayerName(name);
+  closeNameModal();
+  focusTypingInput();
+}
+
+function applyPlayerName(name) {
+  elements.displayNameInput.value = name;
+  updateWelcomeMessage(name);
+}
+
+function updateWelcomeMessage(name) {
+  elements.welcomeMessage.textContent = name
+    ? `欢迎回来，${name} 👑`
+    : "欢迎来到维维打字王 👑";
 }
 
 function chooseRandomText() {
@@ -327,7 +392,7 @@ function buildScoreResult() {
 }
 
 function handleLeaderboardSubmissionAfterCompletion() {
-  const savedName = localStorage.getItem(STORAGE_KEYS.displayName);
+  const savedName = localStorage.getItem("playerName");
 
   showSubmitPanel();
 
@@ -364,7 +429,7 @@ function showSubmitPanel() {
   elements.submitScoreBtn.textContent = "提交成绩";
   elements.submitMessage.textContent = "成绩符合提交条件，请输入显示名称后提交。";
 
-  if (!localStorage.getItem(STORAGE_KEYS.displayName)) {
+  if (!localStorage.getItem("playerName")) {
     elements.displayNameInput.focus();
   }
 }
@@ -397,7 +462,8 @@ async function submitScoreWithName(displayName, isAutomatic) {
   elements.submitMessage.textContent = isAutomatic ? "正在使用已保存的名称自动提交成绩..." : "正在提交到在线排行榜...";
 
   try {
-    localStorage.setItem(STORAGE_KEYS.displayName, displayName);
+    localStorage.setItem("playerName", displayName);
+    applyPlayerName(displayName);
     // Supabase column types are strict, so normalize numeric values before insert.
     const payload = {
       display_name: displayName,
