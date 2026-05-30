@@ -82,6 +82,7 @@ const elements = {
   feedbackBox: document.querySelector("#feedbackBox"),
   submitPanel: document.querySelector("#submitPanel"),
   submitMessage: document.querySelector("#submitMessage"),
+  leaderboardRequirement: document.querySelector("#leaderboardRequirement"),
   submitFields: document.querySelector("#submitFields"),
   displayNameInput: document.querySelector("#displayNameInput"),
   submitScoreBtn: document.querySelector("#submitScoreBtn"),
@@ -110,6 +111,7 @@ function bindEvents() {
   elements.difficultySelect.addEventListener("change", () => {
     state.difficulty = elements.difficultySelect.value;
     state.lastTextIndex = -1;
+    updateLeaderboardRequirement();
     chooseRandomText();
   });
 
@@ -289,6 +291,7 @@ function resetCurrentText() {
   elements.submitPanel.hidden = true;
   elements.submitMessage.textContent = "";
   elements.submitScoreBtn.disabled = false;
+  updateLeaderboardRequirement();
 
   renderTargetText();
   updateStats();
@@ -445,6 +448,10 @@ function renderBestScores() {
 
 function showPositiveFeedback() {
   const message = FEEDBACK_MESSAGES[Math.floor(Math.random() * FEEDBACK_MESSAGES.length)];
+  showFeedback(message);
+}
+
+function showFeedback(message) {
   elements.feedbackBox.textContent = message;
 }
 
@@ -463,10 +470,11 @@ function buildScoreResult() {
 
 function handleLeaderboardSubmissionAfterCompletion() {
   const savedName = localStorage.getItem("playerName");
+  const minimumAccuracy = state.lastResult ? getMinimumAccuracy(state.lastResult.difficulty) : 95;
 
   showSubmitPanel();
 
-  if (!state.lastResult || state.lastResult.accuracy < 90 || !isSupabaseConfigured()) {
+  if (!state.lastResult || state.lastResult.accuracy < minimumAccuracy || !isSupabaseConfigured()) {
     return;
   }
 
@@ -479,12 +487,15 @@ function handleLeaderboardSubmissionAfterCompletion() {
 function showSubmitPanel() {
   if (!state.lastResult) return;
 
+  const minimumAccuracy = getMinimumAccuracy(state.lastResult.difficulty);
   elements.submitPanel.hidden = false;
+  updateLeaderboardRequirement(minimumAccuracy);
 
-  // Only accurate tests are eligible for the online leaderboard.
-  if (state.lastResult.accuracy < 90) {
+  // Each difficulty has its own accuracy gate before a score can go online.
+  if (state.lastResult.accuracy < minimumAccuracy) {
     elements.submitFields.hidden = true;
-    elements.submitMessage.textContent = "准确率达到 90% 才能提交到在线排行榜。继续练习，你会越来越稳。";
+    showFeedback(`准确率需要达到 ${minimumAccuracy}% 才能提交到排行榜。`);
+    elements.submitMessage.textContent = `准确率需要达到 ${minimumAccuracy}% 才能提交到在线排行榜。继续练习，你会越来越稳。`;
     return;
   }
 
@@ -497,7 +508,7 @@ function showSubmitPanel() {
   elements.submitFields.hidden = false;
   elements.submitScoreBtn.disabled = false;
   elements.submitScoreBtn.textContent = "提交成绩";
-  elements.submitMessage.textContent = "成绩符合提交条件，请输入显示名称后提交。";
+  elements.submitMessage.textContent = "成绩符合当前难度要求，可以提交到在线排行榜。";
 
   if (!localStorage.getItem("playerName")) {
     elements.displayNameInput.focus();
@@ -515,7 +526,15 @@ async function submitScore() {
     return;
   }
 
-  if (state.lastResult.accuracy < 90 || !isSupabaseConfigured()) {
+  const minimumAccuracy = getMinimumAccuracy(state.lastResult.difficulty);
+
+  if (state.lastResult.accuracy < minimumAccuracy) {
+    showFeedback(`准确率需要达到 ${minimumAccuracy}% 才能提交到排行榜。`);
+    showSubmitPanel();
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
     showSubmitPanel();
     return;
   }
@@ -524,7 +543,15 @@ async function submitScore() {
 }
 
 async function submitScoreWithName(displayName, isAutomatic) {
-  if (state.scoreSubmitted || state.submitting) return;
+  if (!state.lastResult || state.scoreSubmitted || state.submitting) return;
+
+  const minimumAccuracy = getMinimumAccuracy(state.lastResult.difficulty);
+
+  if (state.lastResult.accuracy < minimumAccuracy) {
+    showFeedback(`准确率需要达到 ${minimumAccuracy}% 才能提交到排行榜。`);
+    showSubmitPanel();
+    return;
+  }
 
   state.submitting = true;
   elements.submitScoreBtn.disabled = true;
@@ -601,8 +628,8 @@ async function loadLeaderboard() {
     const requestUrl = new URL(getSupabaseEndpoint());
     requestUrl.searchParams.set("select", "display_name,difficulty,wpm,accuracy,errors,time_used,completed_at");
     requestUrl.searchParams.set("difficulty", `eq.${getDifficultyName(state.leaderboardDifficulty)}`);
-    requestUrl.searchParams.set("order", "accuracy.desc,wpm.desc");
-    requestUrl.searchParams.set("limit", "20");
+    requestUrl.searchParams.set("order", "wpm.desc,accuracy.desc,errors.asc,time_used.asc");
+    requestUrl.searchParams.set("limit", "100");
 
     const response = await fetch(requestUrl, {
       headers: getSupabaseHeaders()
@@ -614,7 +641,9 @@ async function loadLeaderboard() {
       throw error;
     }
 
-    const scores = await response.json();
+    const rawScores = await response.json();
+    const scores = getTopLeaderboardScores(rawScores);
+
     renderLeaderboard(scores);
     elements.leaderboardStatus.textContent = scores.length
       ? `正在显示 ${getDifficultyName(state.leaderboardDifficulty)} 前 ${scores.length} 名`
@@ -624,6 +653,64 @@ async function loadLeaderboard() {
     renderEmptyLeaderboard("暂无在线数据");
     elements.leaderboardStatus.textContent = "无法连接在线排行榜。打字练习和本地最佳记录仍然正常。";
   }
+}
+
+function getTopLeaderboardScores(scores) {
+  const bestByPlayer = new Map();
+
+  scores.forEach((score) => {
+    const displayName = String(score.display_name || "").trim();
+    const playerKey = displayName.toLowerCase();
+    const existingScore = bestByPlayer.get(playerKey);
+    const normalizedScore = {
+      ...score,
+      display_name: displayName || "匿名维维"
+    };
+
+    // Keep only the strongest row for each player in the selected difficulty.
+    if (!existingScore || isBetterScore(normalizedScore, existingScore)) {
+      bestByPlayer.set(playerKey, normalizedScore);
+    }
+  });
+
+  return [...bestByPlayer.values()]
+    .sort(compareLeaderboardScores)
+    .slice(0, 20);
+}
+
+function isBetterScore(a, b) {
+  const aWpm = getScoreNumber(a.wpm);
+  const bWpm = getScoreNumber(b.wpm);
+  if (aWpm !== bWpm) return aWpm > bWpm;
+
+  const aAccuracy = getScoreNumber(a.accuracy);
+  const bAccuracy = getScoreNumber(b.accuracy);
+  if (aAccuracy !== bAccuracy) return aAccuracy > bAccuracy;
+
+  const aErrors = getScoreNumber(a.errors);
+  const bErrors = getScoreNumber(b.errors);
+  if (aErrors !== bErrors) return aErrors < bErrors;
+
+  const aTimeUsed = getScoreNumber(a.time_used);
+  const bTimeUsed = getScoreNumber(b.time_used);
+  return aTimeUsed < bTimeUsed;
+}
+
+function compareLeaderboardScores(a, b) {
+  const wpmDifference = getScoreNumber(b.wpm) - getScoreNumber(a.wpm);
+  if (wpmDifference !== 0) return wpmDifference;
+
+  const accuracyDifference = getScoreNumber(b.accuracy) - getScoreNumber(a.accuracy);
+  if (accuracyDifference !== 0) return accuracyDifference;
+
+  const errorDifference = getScoreNumber(a.errors) - getScoreNumber(b.errors);
+  if (errorDifference !== 0) return errorDifference;
+
+  return getScoreNumber(a.time_used) - getScoreNumber(b.time_used);
+}
+
+function getScoreNumber(value) {
+  return Number(value) || 0;
 }
 
 function renderLeaderboard(scores) {
@@ -639,8 +726,8 @@ function renderLeaderboard(scores) {
     const cells = [
       index + 1,
       score.display_name || "匿名维维",
-      `${formatScoreNumber(score.accuracy)}%`,
       formatScoreNumber(score.wpm),
+      `${formatScoreNumber(score.accuracy)}%`,
       score.errors ?? 0,
       formatSeconds(score.time_used),
       formatCompletedAt(score.completed_at)
@@ -709,7 +796,7 @@ function formatScoreNumber(value) {
 }
 
 function formatSeconds(value) {
-  const totalSeconds = Number(value) || 0;
+  const totalSeconds = Math.round(Number(value) || 0);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = String(totalSeconds % 60).padStart(2, "0");
   return `${minutes}:${seconds}`;
@@ -771,6 +858,24 @@ function getDifficultyName(difficulty) {
   };
 
   return names[difficulty];
+}
+
+function getMinimumAccuracy(difficulty) {
+  const requirements = {
+    "初级维维": 95,
+    "中级维维": 96,
+    "高级维维": 97,
+    "维维打字宗师": 98
+  };
+  const displayDifficulty = requirements[difficulty] ? difficulty : getDifficultyName(difficulty);
+
+  return requirements[displayDifficulty] ?? 95;
+}
+
+function updateLeaderboardRequirement(minimumAccuracy = getMinimumAccuracy(getDifficultyName(state.difficulty))) {
+  if (!elements.leaderboardRequirement) return;
+
+  elements.leaderboardRequirement.textContent = `排行榜要求：当前难度准确率需达到 ${minimumAccuracy}% 以上`;
 }
 
 function getElapsedSeconds() {
