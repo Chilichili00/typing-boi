@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -27,6 +31,10 @@ body {
   color: var(--ink);
   font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
   line-height: 1.5;
+}
+
+body.modal-open {
+  overflow: hidden;
 }
 
 button,
@@ -505,17 +513,19 @@ input[type="text"]:focus {
   border-bottom: 0;
 }
 
-.modal-backdrop {
+.nickname-backdrop {
   position: fixed;
   inset: 0;
   z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 20px;
   background: rgba(22, 33, 38, 0.42);
 }
 
-.name-modal {
+.nickname-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 21;
+  transform: translate(-50%, -50%);
   width: min(420px, 100%);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -524,17 +534,27 @@ input[type="text"]:focus {
   box-shadow: 0 24px 70px rgba(22, 33, 38, 0.22);
 }
 
-.name-modal h2 {
+.nickname-modal h2 {
   margin-bottom: 14px;
 }
 
-.name-modal label {
+.nickname-modal label {
   display: block;
   margin-bottom: 8px;
 }
 
-.name-modal input {
+.nickname-modal input {
   margin-bottom: 8px;
+}
+
+#confirmNicknameBtn {
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--brand);
+  color: #ffffff;
+  padding: 10px 14px;
+  font-weight: 800;
 }
 
 .name-error {

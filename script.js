@@ -89,13 +89,16 @@ const elements = {
   leaderboardRows: document.querySelector("#leaderboardRows"),
   leaderboardFilterBtns: document.querySelectorAll(".filter-btn"),
   refreshLeaderboardBtn: document.querySelector("#refreshLeaderboardBtn"),
-  nameModal: document.querySelector("#nameModal"),
-  playerNameInput: document.querySelector("#playerNameInput"),
-  nameError: document.querySelector("#nameError"),
-  confirmNameBtn: document.querySelector("#confirmNameBtn")
+  nicknameModal: document.querySelector("#nicknameModal"),
+  nicknameBackdrop: document.querySelector("#nicknameBackdrop"),
+  nicknameInput: document.querySelector("#nicknameInput"),
+  nicknameError: document.querySelector("#nicknameError"),
+  confirmNicknameBtn: document.querySelector("#confirmNicknameBtn")
 };
 
 function startApp() {
+  console.log("[nickname] page load initialization");
+  logNicknameModalDebug("page load initialization");
   renderBestScores();
   chooseRandomText();
   setupPlayerName();
@@ -117,11 +120,14 @@ function bindEvents() {
   elements.typingInput.addEventListener("input", handleTyping);
   elements.submitScoreBtn.addEventListener("click", submitScore);
   elements.refreshLeaderboardBtn.addEventListener("click", loadLeaderboard);
-  elements.changeNameBtn.addEventListener("click", openNameModal);
-  elements.confirmNameBtn.addEventListener("click", confirmPlayerName);
-  elements.playerNameInput.addEventListener("keydown", (event) => {
+  elements.changeNameBtn.addEventListener("click", showNicknameModal);
+
+  const confirmNicknameBtn = elements.confirmNicknameBtn;
+  confirmNicknameBtn.addEventListener("click", handleNicknameConfirm);
+
+  elements.nicknameInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      confirmPlayerName();
+      handleNicknameConfirm();
     }
   });
 
@@ -136,63 +142,72 @@ function bindEvents() {
 
 function setupPlayerName() {
   const playerName = localStorage.getItem("playerName");
+  console.log("[nickname] setupPlayerName playerName:", playerName);
+  logNicknameModalDebug("setupPlayerName");
 
   if (playerName) {
     applyPlayerName(playerName);
+    closeNicknameModal();
     return;
   }
 
   updateWelcomeMessage("");
-  elements.displayNameInput.value = "";
-  openNameModal();
+  fillLeaderboardName("");
+  showNicknameModal();
 }
 
-function openNameModal() {
-  const playerName = localStorage.getItem("playerName") || "";
-  const modal = document.getElementById("nameModal");
-  const overlay = document.getElementById("modalOverlay");
+function showNicknameModal() {
+  console.log("[nickname] showNicknameModal called");
+  console.trace("[nickname] showNicknameModal stack");
+  logNicknameModalDebug("showNicknameModal before show");
 
-  elements.playerNameInput.value = playerName;
-  elements.nameError.textContent = "";
-  elements.nameModal.hidden = false;
+  const playerName = localStorage.getItem("playerName") || "";
+  const modal = document.getElementById("nicknameModal");
+  const backdrop = document.getElementById("nicknameBackdrop");
+
+  elements.nicknameInput.value = playerName;
+  elements.nicknameError.textContent = "";
+
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+    backdrop.style.display = "block";
+    backdrop.setAttribute("aria-hidden", "false");
+  }
 
   if (modal) {
-    modal.style.display = "grid";
+    modal.classList.remove("hidden");
+    modal.style.display = "block";
     modal.setAttribute("aria-hidden", "false");
   }
 
-  if (overlay) {
-    overlay.style.display = "grid";
-  }
-
   document.body.classList.add("modal-open");
-  elements.playerNameInput.focus();
+  elements.nicknameInput.focus();
+  logNicknameModalDebug("showNicknameModal after show");
 }
 
-function closeNameModal() {
-  const modal = document.getElementById("nameModal");
-  const overlay = document.getElementById("modalOverlay");
+function closeNicknameModal() {
+  console.log("[nickname] closeNicknameModal called");
+  logNicknameModalDebug("closeNicknameModal before close");
 
-  elements.nameModal.hidden = true;
-
-  if (modal) {
-    modal.style.display = "none";
-    modal.setAttribute("aria-hidden", "true");
-  }
-
-  if (overlay) {
-    overlay.style.display = "none";
-  }
+  document.querySelectorAll("#nicknameModal, .nickname-modal, #nicknameBackdrop, .nickname-backdrop").forEach((el) => {
+    el.classList.add("hidden");
+    el.style.display = "none";
+    el.setAttribute("aria-hidden", "true");
+  });
 
   document.body.classList.remove("modal-open");
+  logNicknameModalDebug("closeNicknameModal after close");
 }
 
-function confirmPlayerName() {
-  const input = document.getElementById("playerNameInput");
+function handleNicknameConfirm() {
+  console.log("[nickname] handleNicknameConfirm called");
+  logNicknameModalDebug("handleNicknameConfirm before save");
+
+  const input = document.getElementById("nicknameInput");
   const name = input ? input.value.trim() : "";
 
-  if (name.length < 1) {
-    elements.nameError.textContent = "昵称至少需要 1 个字符。";
+  if (!name) {
+    elements.nicknameError.textContent = "昵称至少需要 1 个字符。";
     if (input) {
       input.focus();
     }
@@ -200,14 +215,39 @@ function confirmPlayerName() {
   }
 
   localStorage.setItem("playerName", name);
-  applyPlayerName(name);
-  closeNameModal();
+  updateWelcomeMessage(name);
+  fillLeaderboardName(name);
+  closeNicknameModal();
+  logNicknameModalDebug("handleNicknameConfirm after close");
   focusTypingInput();
 }
 
+function logNicknameModalDebug(context) {
+  const selector = "#nicknameModal, .nickname-modal, .modal, .modal-backdrop, .overlay";
+  const matchingElements = [...document.querySelectorAll(selector)].map((el) => {
+    const computedStyle = window.getComputedStyle(el);
+
+    return {
+      id: el.id || "",
+      className: el.className || "",
+      hidden: el.hidden,
+      ariaHidden: el.getAttribute("aria-hidden"),
+      inlineDisplay: el.style.display || "",
+      computedDisplay: computedStyle.display
+    };
+  });
+
+  console.log(`[nickname] ${context} playerName:`, localStorage.getItem("playerName"));
+  console.log(`[nickname] ${context} matching elements:`, matchingElements);
+}
+
 function applyPlayerName(name) {
-  elements.displayNameInput.value = name;
   updateWelcomeMessage(name);
+  fillLeaderboardName(name);
+}
+
+function fillLeaderboardName(name) {
+  elements.displayNameInput.value = name;
 }
 
 function updateWelcomeMessage(name) {

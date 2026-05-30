@@ -152,14 +152,13 @@
     </main>
   </div>
 
-  <div id="nameModal" class="modal-backdrop" hidden>
-    <div class="name-modal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
-      <h2 id="nameModalTitle">欢迎来到维维打字王 👑</h2>
-      <label for="playerNameInput">请输入你的昵称：</label>
-      <input id="playerNameInput" type="text" maxlength="24" autocomplete="name" placeholder="例如：维维">
-      <p id="nameError" class="name-error" aria-live="polite"></p>
-      <button id="confirmNameBtn" class="primary-btn" type="button">确认</button>
-    </div>
+  <div id="nicknameBackdrop" class="nickname-backdrop hidden" aria-hidden="true"></div>
+  <div id="nicknameModal" class="nickname-modal hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="nicknameModalTitle">
+    <h2 id="nicknameModalTitle">欢迎来到维维打字王 👑</h2>
+    <label for="nicknameInput">请输入你的昵称：</label>
+    <input id="nicknameInput" type="text" maxlength="24" autocomplete="name" placeholder="例如：维维">
+    <p id="nicknameError" class="name-error" aria-live="polite"></p>
+    <button type="button" id="confirmNicknameBtn">确认</button>
   </div>
 
   <script src="script.js"></script>
