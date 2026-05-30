@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>维维打字王</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">英语打字练习</p>
+        <h1>维维打字王 <span class="crown" aria-hidden="true">👑</span></h1>
+        <p class="hero-copy">每天进步一点点</p>
+      </div>
+
+      <div class="best-panel" aria-label="个人最佳成绩">
+        <div>
+          <span>最佳 WPM</span>
+          <strong id="bestWpm">0</strong>
+        </div>
+        <div>
+          <span>最佳准确率</span>
+          <strong id="bestAccuracy">0%</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel controls-panel" aria-labelledby="settingsTitle">
+        <p class="section-kicker">练习设置</p>
+        <h2 id="settingsTitle">选择你的节奏</h2>
+
+        <div class="field-group">
+          <label for="difficultySelect">难度</label>
+          <select id="difficultySelect">
+            <option value="beginner">初级维维 - 约 50 词</option>
+            <option value="easy">中级维维 - 约 100 词</option>
+            <option value="medium">高级维维 - 约 200 词</option>
+            <option value="hard">维维打字宗师 - 约 300 词</option>
+          </select>
+        </div>
+
+        <div class="text-info">
+          <span id="levelLabel">初级维维</span>
+          <strong id="wordCount">0 词</strong>
+        </div>
+
+        <div class="button-row">
+          <button id="nextTextBtn" class="primary-btn" type="button">下一篇</button>
+          <button id="restartBtn" class="secondary-btn" type="button">重新开始</button>
+        </div>
+      </section>
+
+      <section class="panel trainer-panel" aria-labelledby="trainerTitle">
+        <div class="trainer-heading">
+          <div>
+            <p class="section-kicker">跟着文字输入</p>
+            <h2 id="trainerTitle">打字区</h2>
+          </div>
+          <p id="feedbackBox" class="feedback-box" aria-live="polite"></p>
+        </div>
+
+        <div id="typingSurface" class="typing-surface" tabindex="0" aria-label="打字练习文本">
+          <div id="targetText" class="target-text"></div>
+          <textarea id="typingInput" class="typing-capture" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="隐藏打字输入"></textarea>
+        </div>
+
+        <div class="progress-wrap" aria-label="打字进度">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+
+        <div class="stats-grid" aria-live="polite">
+          <div class="stat-card">
+            <span>WPM</span>
+            <strong id="wpmStat">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>准确率</span>
+            <strong id="accuracyStat">100%</strong>
+          </div>
+          <div class="stat-card">
+            <span>错误</span>
+            <strong id="errorStat">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>进度</span>
+            <strong id="progressStat">0%</strong>
+          </div>
+        </div>
+
+        <div id="submitPanel" class="submit-panel" hidden>
+          <div>
+            <p class="submit-title">提交到排行榜</p>
+            <p id="submitMessage" class="submit-message">准确率达到 90% 后，可以提交你的成绩。</p>
+          </div>
+          <div id="submitFields" class="submit-fields">
+            <label for="displayNameInput">显示名称</label>
+            <div class="submit-row">
+              <input id="displayNameInput" type="text" maxlength="24" placeholder="输入你的名字">
+              <button id="submitScoreBtn" class="primary-btn" type="button">提交成绩</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel leaderboard-panel" aria-labelledby="leaderboardTitle">
+        <div class="leaderboard-heading">
+          <div>
+            <p class="section-kicker">在线排行榜</p>
+            <h2 id="leaderboardTitle">前 20 名</h2>
+          </div>
+          <button id="refreshLeaderboardBtn" class="secondary-btn" type="button">刷新</button>
+        </div>
+
+        <div class="leaderboard-filters" aria-label="排行榜难度筛选">
+          <button class="filter-btn active" type="button" data-difficulty="beginner">初级维维</button>
+          <button class="filter-btn" type="button" data-difficulty="easy">中级维维</button>
+          <button class="filter-btn" type="button" data-difficulty="medium">高级维维</button>
+          <button class="filter-btn" type="button" data-difficulty="hard">维维打字宗师</button>
+        </div>
+
+        <p id="leaderboardStatus" class="leaderboard-status" aria-live="polite">正在加载排行榜...</p>
+
+        <div class="leaderboard-table-wrap">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>排名</th>
+                <th>名称</th>
+                <th>准确率</th>
+                <th>WPM</th>
+                <th>错误</th>
+                <th>用时</th>
+                <th>完成时间</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardRows">
+              <tr>
+                <td colspan="7">暂无在线数据</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
