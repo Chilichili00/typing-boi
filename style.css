@@ -102,35 +102,44 @@ h2 {
   font-size: 1.08rem;
 }
 
-.best-panel {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(118px, 1fr));
-  gap: 12px;
-  min-width: 280px;
-}
-
-.best-panel > div {
+.progress-panel {
+  min-width: 320px;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 8px 24px rgba(28, 54, 50, 0.08);
 }
 
-.best-panel span,
+.progress-panel p {
+  margin-bottom: 8px;
+  color: #52636a;
+  font-weight: 700;
+}
+
+.progress-panel p:last-child {
+  margin-bottom: 0;
+}
+
+.progress-panel strong,
+.progress-title {
+  color: var(--brand-dark);
+  font-weight: 900;
+}
+
+.progress-title {
+  font-size: 1.06rem;
+}
+
+.personal-best-notice {
+  color: #b45309 !important;
+}
+
 .stat-card span {
   display: block;
   color: #617177;
   font-size: 0.86rem;
   font-weight: 700;
-}
-
-.best-panel strong {
-  display: block;
-  margin-top: 5px;
-  color: var(--brand-dark);
-  font-size: 2rem;
-  line-height: 1;
 }
 
 .workspace {
@@ -175,6 +184,12 @@ h2 {
   font-weight: 800;
 }
 
+.player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .name-btn {
   width: fit-content;
   min-height: 36px;
@@ -184,6 +199,12 @@ h2 {
   color: var(--ink);
   padding: 7px 11px;
   font-weight: 800;
+}
+
+.warning-btn {
+  border-color: #f3d18b;
+  background: #fff8e7;
+  color: #925f13;
 }
 
 label {
@@ -229,6 +250,39 @@ input[type="text"]:focus {
 
 .text-info strong {
   font-size: 1.2rem;
+}
+
+.mistyped-card {
+  display: grid;
+  gap: 6px;
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid #f5d99b;
+  border-radius: 8px;
+  background: #fff8e7;
+}
+
+.mistyped-title {
+  margin-bottom: 0;
+  color: #925f13;
+  font-weight: 900;
+}
+
+.mistyped-card span {
+  color: #7c5b1e;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.mistyped-list {
+  margin: 0;
+  padding-left: 22px;
+  color: #5f4a20;
+  font-weight: 700;
+}
+
+.mistyped-list li + li {
+  margin-top: 3px;
 }
 
 .button-row {
@@ -327,6 +381,12 @@ input[type="text"]:focus {
 
 .char.incorrect {
   color: var(--incorrect);
+}
+
+.char.space-error {
+  color: #ef4444;
+  font-weight: 700;
+  display: inline;
 }
 
 .char.pending {
@@ -554,6 +614,145 @@ input[type="text"]:focus {
   margin-bottom: 8px;
 }
 
+.completion-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background:
+    radial-gradient(circle at 24% 20%, rgba(255, 214, 102, 0.34), transparent 28%),
+    radial-gradient(circle at 82% 16%, rgba(115, 182, 93, 0.28), transparent 26%),
+    rgba(18, 31, 35, 0.54);
+  backdrop-filter: blur(3px);
+}
+
+.completion-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 31;
+  width: min(560px, calc(100% - 28px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 255, 249, 0.96)),
+    linear-gradient(135deg, rgba(255, 214, 102, 0.20), rgba(38, 115, 107, 0.14));
+  padding: 30px;
+  box-shadow: 0 28px 80px rgba(18, 31, 35, 0.30);
+  animation: popIn 260ms ease-out;
+}
+
+.celebration-icons {
+  position: absolute;
+  inset: 16px 20px auto auto;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.celebration-icons span {
+  display: inline-block;
+  animation: floatEmoji 2.4s ease-in-out infinite;
+}
+
+.celebration-icons span:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.celebration-icons span:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+.completion-kicker {
+  margin-bottom: 4px;
+  color: #b45309;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.completion-modal h2 {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: clamp(2rem, 8vw, 3.2rem);
+}
+
+.completion-record {
+  margin-bottom: 16px;
+  color: #b45309;
+  font-size: 1.12rem;
+  font-weight: 900;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.result-grid > div {
+  padding: 14px;
+  border: 1px solid rgba(220, 229, 226, 0.92);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.result-grid span {
+  display: block;
+  color: #617177;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.result-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--brand-dark);
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+
+.result-wide {
+  grid-column: 1 / -1;
+}
+
+.completion-status {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff8e7;
+  color: #925f13;
+  font-weight: 900;
+}
+
+.completion-status.success {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+.completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.completion-actions button {
+  flex: 1 1 145px;
+}
+
+.ghost-btn {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 10px 14px;
+  font-weight: 800;
+}
+
 #confirmNicknameBtn {
   min-height: 44px;
   border-radius: 8px;
@@ -571,6 +770,27 @@ input[type="text"]:focus {
   font-weight: 700;
 }
 
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) translateY(0);
+  }
+}
+
+@keyframes floatEmoji {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(8deg);
+  }
+}
+
 @media (max-width: 900px) {
   .hero,
   .workspace {
@@ -578,7 +798,7 @@ input[type="text"]:focus {
     grid-template-columns: 1fr;
   }
 
-  .best-panel {
+  .progress-panel {
     min-width: 0;
     width: 100%;
   }
@@ -596,7 +816,6 @@ input[type="text"]:focus {
     padding: 16px;
   }
 
-  .best-panel,
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -622,15 +841,27 @@ input[type="text"]:focus {
   .button-row,
   .button-row button,
   .name-btn,
+  .player-actions,
   .submit-row,
   .submit-row button,
+  .completion-actions,
+  .completion-actions button,
   .leaderboard-heading,
   .leaderboard-heading button {
     width: 100%;
   }
 
   .submit-row,
+  .completion-actions,
   .leaderboard-heading {
     display: grid;
+  }
+
+  .completion-modal {
+    padding: 22px;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
   }
 }

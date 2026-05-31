@@ -15,15 +15,12 @@
         <p class="hero-copy">每天进步一点点</p>
       </div>
 
-      <div class="best-panel" aria-label="个人最佳成绩">
-        <div>
-          <span>最佳 WPM</span>
-          <strong id="bestWpm">0</strong>
-        </div>
-        <div>
-          <span>最佳准确率</span>
-          <strong id="bestAccuracy">0%</strong>
-        </div>
+      <div class="progress-panel" aria-label="个人进步">
+        <p class="progress-title">个人进步</p>
+        <p>当前难度最佳 WPM: <strong id="currentBestWpm">0</strong></p>
+        <p>当前难度最佳准确率: <strong id="currentBestAccuracy">0%</strong></p>
+        <p>距离新纪录: <strong id="neededWpmText">完成一次练习建立纪录</strong></p>
+        <p id="personalBestNotice" class="personal-best-notice" hidden>🎉 New Personal Best!</p>
       </div>
     </header>
 
@@ -34,7 +31,10 @@
 
         <div class="player-card">
           <p id="welcomeMessage">欢迎来到维维打字王 👑</p>
-          <button id="changeNameBtn" class="name-btn" type="button">修改昵称</button>
+          <div class="player-actions">
+            <button id="changeNameBtn" class="name-btn" type="button">修改昵称</button>
+            <button id="resetLocalDataBtn" class="name-btn warning-btn" type="button">重置个人数据</button>
+          </div>
         </div>
 
         <div class="field-group">
@@ -50,6 +50,14 @@
         <div class="text-info">
           <span id="levelLabel">初级维维</span>
           <strong id="wordCount">0 词</strong>
+        </div>
+
+        <div class="mistyped-card" aria-labelledby="mistypedTitle">
+          <p id="mistypedTitle" class="mistyped-title">错字统计</p>
+          <span>最容易打错：</span>
+          <ol id="mistypedList" class="mistyped-list">
+            <li>暂无错字，继续保持！</li>
+          </ol>
         </div>
 
         <div class="button-row">
@@ -160,6 +168,49 @@
     <input id="nicknameInput" type="text" maxlength="24" autocomplete="name" placeholder="例如：维维">
     <p id="nicknameError" class="name-error" aria-live="polite"></p>
     <button type="button" id="confirmNicknameBtn">确认</button>
+  </div>
+
+  <div id="completionBackdrop" class="completion-backdrop hidden" aria-hidden="true"></div>
+  <div id="completionModal" class="completion-modal hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="completionTitle">
+    <div class="celebration-icons" aria-hidden="true">
+      <span>✨</span>
+      <span>🎉</span>
+      <span>👑</span>
+    </div>
+    <p class="completion-kicker">维维完成啦</p>
+    <h2 id="completionTitle">🎉 完成练习！</h2>
+    <p id="completionRecord" class="completion-record" hidden>🏆 新个人纪录！</p>
+
+    <div class="result-grid" aria-label="练习结果">
+      <div>
+        <span>WPM</span>
+        <strong id="resultWpm">0</strong>
+      </div>
+      <div>
+        <span>准确率</span>
+        <strong id="resultAccuracy">0%</strong>
+      </div>
+      <div>
+        <span>错误</span>
+        <strong id="resultErrors">0</strong>
+      </div>
+      <div>
+        <span>用时</span>
+        <strong id="resultTime">0:00</strong>
+      </div>
+      <div class="result-wide">
+        <span>难度</span>
+        <strong id="resultDifficulty">初级维维</strong>
+      </div>
+    </div>
+
+    <p id="completionLeaderboardStatus" class="completion-status">可以提交到排行榜！</p>
+
+    <div class="completion-actions">
+      <button id="completionSubmitBtn" class="primary-btn" type="button">提交排行榜</button>
+      <button id="completionNextBtn" class="secondary-btn" type="button">再来一篇</button>
+      <button id="completionCloseBtn" class="ghost-btn" type="button">关闭</button>
+    </div>
   </div>
 
   <script src="script.js"></script>

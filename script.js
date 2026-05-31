@@ -1,6 +1,7 @@
 const STORAGE_KEYS = {
-  bestWpm: "gentleTypingTrainer.bestWpm",
-  bestAccuracy: "gentleTypingTrainer.bestAccuracy",
+  personalBests: "typingBoiPersonalBests",
+  mistypedChars: "typingBoiMistypedChars",
+  streak: "typingBoiStreak",
   playerName: "playerName"
 };
 
@@ -58,6 +59,7 @@ const state = {
   scoreSubmitted: false,
   leaderboardDifficulty: "beginner",
   submitting: false,
+  lastResultIsNewBest: false,
   audioContext: null
 };
 
@@ -77,8 +79,11 @@ const elements = {
   accuracyStat: document.querySelector("#accuracyStat"),
   errorStat: document.querySelector("#errorStat"),
   progressStat: document.querySelector("#progressStat"),
-  bestWpm: document.querySelector("#bestWpm"),
-  bestAccuracy: document.querySelector("#bestAccuracy"),
+  currentBestWpm: document.querySelector("#currentBestWpm"),
+  currentBestAccuracy: document.querySelector("#currentBestAccuracy"),
+  neededWpmText: document.querySelector("#neededWpmText"),
+  personalBestNotice: document.querySelector("#personalBestNotice"),
+  mistypedList: document.querySelector("#mistypedList"),
   feedbackBox: document.querySelector("#feedbackBox"),
   submitPanel: document.querySelector("#submitPanel"),
   submitMessage: document.querySelector("#submitMessage"),
@@ -86,6 +91,7 @@ const elements = {
   submitFields: document.querySelector("#submitFields"),
   displayNameInput: document.querySelector("#displayNameInput"),
   submitScoreBtn: document.querySelector("#submitScoreBtn"),
+  resetLocalDataBtn: document.querySelector("#resetLocalDataBtn"),
   leaderboardStatus: document.querySelector("#leaderboardStatus"),
   leaderboardRows: document.querySelector("#leaderboardRows"),
   leaderboardFilterBtns: document.querySelectorAll(".filter-btn"),
@@ -94,13 +100,26 @@ const elements = {
   nicknameBackdrop: document.querySelector("#nicknameBackdrop"),
   nicknameInput: document.querySelector("#nicknameInput"),
   nicknameError: document.querySelector("#nicknameError"),
-  confirmNicknameBtn: document.querySelector("#confirmNicknameBtn")
+  confirmNicknameBtn: document.querySelector("#confirmNicknameBtn"),
+  completionBackdrop: document.querySelector("#completionBackdrop"),
+  completionModal: document.querySelector("#completionModal"),
+  completionRecord: document.querySelector("#completionRecord"),
+  resultWpm: document.querySelector("#resultWpm"),
+  resultAccuracy: document.querySelector("#resultAccuracy"),
+  resultErrors: document.querySelector("#resultErrors"),
+  resultTime: document.querySelector("#resultTime"),
+  resultDifficulty: document.querySelector("#resultDifficulty"),
+  completionLeaderboardStatus: document.querySelector("#completionLeaderboardStatus"),
+  completionSubmitBtn: document.querySelector("#completionSubmitBtn"),
+  completionNextBtn: document.querySelector("#completionNextBtn"),
+  completionCloseBtn: document.querySelector("#completionCloseBtn")
 };
 
 function startApp() {
   console.log("[nickname] page load initialization");
   logNicknameModalDebug("page load initialization");
-  renderBestScores();
+  renderPersonalProgress();
+  renderMistypedChars();
   chooseRandomText();
   setupPlayerName();
   bindEvents();
@@ -123,6 +142,14 @@ function bindEvents() {
   elements.submitScoreBtn.addEventListener("click", submitScore);
   elements.refreshLeaderboardBtn.addEventListener("click", loadLeaderboard);
   elements.changeNameBtn.addEventListener("click", showNicknameModal);
+  elements.resetLocalDataBtn.addEventListener("click", resetLocalProgressData);
+  elements.completionSubmitBtn.addEventListener("click", handleCompletionSubmit);
+  elements.completionNextBtn.addEventListener("click", () => {
+    closeCompletionModal();
+    chooseRandomText();
+  });
+  elements.completionCloseBtn.addEventListener("click", closeCompletionModal);
+  elements.completionBackdrop.addEventListener("click", closeCompletionModal);
 
   const confirmNicknameBtn = elements.confirmNicknameBtn;
   confirmNicknameBtn.addEventListener("click", handleNicknameConfirm);
@@ -281,6 +308,7 @@ function resetCurrentText() {
   state.timeUsed = 0;
   state.completed = false;
   state.lastResult = null;
+  state.lastResultIsNewBest = false;
   state.scoreSubmitted = false;
   state.submitting = false;
 
@@ -291,10 +319,13 @@ function resetCurrentText() {
   elements.submitPanel.hidden = true;
   elements.submitMessage.textContent = "";
   elements.submitScoreBtn.disabled = false;
+  elements.personalBestNotice.hidden = true;
+  closeCompletionModal();
   updateLeaderboardRequirement();
 
   renderTargetText();
   updateStats();
+  renderPersonalProgress();
   focusTypingInput();
 }
 
@@ -342,8 +373,12 @@ function countNewErrors(previousTyped, currentTyped) {
   let madeError = false;
 
   for (let index = previousTyped.length; index < currentTyped.length; index += 1) {
-    if (currentTyped[index] !== state.target[index]) {
+    const typedChar = currentTyped[index];
+    const targetChar = state.target[index];
+
+    if (!isTypedCharacterCorrect(typedChar, targetChar)) {
       state.errors += 1;
+      recordMistypedChar(targetChar, typedChar);
       madeError = true;
     }
   }
@@ -358,9 +393,16 @@ function updateCharacters() {
 
   characters.forEach((span, index) => {
     span.className = "char";
+    const typedChar = state.typed[index];
+    const targetChar = state.target[index];
+    span.textContent = getVisibleCharacter(typedChar, targetChar);
 
     if (index < state.typed.length) {
-      span.classList.add(state.typed[index] === state.target[index] ? "correct" : "incorrect");
+      span.classList.add(isTypedCharacterCorrect(typedChar, targetChar) ? "correct" : "incorrect");
+
+      if (isIncorrectSpace(typedChar, targetChar)) {
+        span.classList.add("space-error");
+      }
     } else {
       span.classList.add("pending");
     }
@@ -369,6 +411,22 @@ function updateCharacters() {
       span.classList.add("current");
     }
   });
+}
+
+function isTypedCharacterCorrect(typedChar, targetChar) {
+  return typedChar === targetChar;
+}
+
+function getVisibleCharacter(typedChar, targetChar) {
+  if (isIncorrectSpace(typedChar, targetChar)) {
+    return "·";
+  }
+
+  return targetChar;
+}
+
+function isIncorrectSpace(typedChar, targetChar) {
+  return targetChar === " " && Boolean(typedChar) && typedChar !== " ";
 }
 
 function startTimer() {
@@ -393,8 +451,19 @@ function finishPractice() {
   updateCharacters();
   updateStats();
   state.lastResult = buildScoreResult();
-  savePersonalBests();
-  showPositiveFeedback();
+  const isNewBestWpm = updatePersonalBest(state.difficulty, state.lastResult.wpm, state.lastResult.accuracy);
+  state.lastResultIsNewBest = isNewBestWpm;
+
+  if (isNewBestWpm) {
+    elements.personalBestNotice.hidden = false;
+    elements.neededWpmText.textContent = "刚刚刷新纪录！";
+    showFeedback("🎉 New Personal Best!");
+  } else {
+    elements.personalBestNotice.hidden = true;
+    showPositiveFeedback();
+  }
+
+  showCompletionModal();
   handleLeaderboardSubmissionAfterCompletion();
 }
 
@@ -404,7 +473,7 @@ function getStats() {
   }
 
   const correctCharacters = [...state.typed].filter((character, index) => {
-    return character === state.target[index];
+    return isTypedCharacterCorrect(character, state.target[index]);
   }).length;
 
   const elapsedMinutes = Math.max(getElapsedSeconds() / 60, 1 / 60);
@@ -423,27 +492,7 @@ function updateStats() {
   elements.errorStat.textContent = state.errors;
   elements.progressStat.textContent = `${Math.round(stats.progress)}%`;
   elements.progressBar.style.width = `${Math.min(stats.progress, 100)}%`;
-}
-
-function savePersonalBests() {
-  const stats = getStats();
-  const bestWpm = getBestWpm();
-  const bestAccuracy = getBestAccuracy();
-
-  if (stats.wpm > bestWpm) {
-    localStorage.setItem(STORAGE_KEYS.bestWpm, String(stats.wpm));
-  }
-
-  if (stats.accuracy > bestAccuracy) {
-    localStorage.setItem(STORAGE_KEYS.bestAccuracy, String(stats.accuracy));
-  }
-
-  renderBestScores();
-}
-
-function renderBestScores() {
-  elements.bestWpm.textContent = Math.round(getBestWpm());
-  elements.bestAccuracy.textContent = `${Math.round(getBestAccuracy())}%`;
+  renderPersonalProgress(stats);
 }
 
 function showPositiveFeedback() {
@@ -453,6 +502,240 @@ function showPositiveFeedback() {
 
 function showFeedback(message) {
   elements.feedbackBox.textContent = message;
+}
+
+function showCompletionModal() {
+  if (!state.lastResult) return;
+
+  elements.resultWpm.textContent = state.lastResult.wpm;
+  elements.resultAccuracy.textContent = `${formatScoreNumber(state.lastResult.accuracy)}%`;
+  elements.resultErrors.textContent = state.lastResult.errors;
+  elements.resultTime.textContent = formatSeconds(state.lastResult.time_used);
+  elements.resultDifficulty.textContent = state.lastResult.difficulty;
+  elements.completionRecord.hidden = !state.lastResultIsNewBest;
+
+  updateCompletionSubmitState();
+  elements.completionBackdrop.classList.remove("hidden");
+  elements.completionModal.classList.remove("hidden");
+  elements.completionBackdrop.setAttribute("aria-hidden", "false");
+  elements.completionModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeCompletionModal() {
+  elements.completionBackdrop.classList.add("hidden");
+  elements.completionModal.classList.add("hidden");
+  elements.completionBackdrop.setAttribute("aria-hidden", "true");
+  elements.completionModal.setAttribute("aria-hidden", "true");
+
+  if (elements.nicknameModal.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function handleCompletionSubmit() {
+  if (!state.lastResult || state.scoreSubmitted || state.submitting) {
+    updateCompletionSubmitState();
+    return;
+  }
+
+  const minimumAccuracy = getMinimumAccuracy(state.lastResult.difficulty);
+
+  if (state.lastResult.accuracy < minimumAccuracy) {
+    updateCompletionSubmitState();
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
+    elements.completionLeaderboardStatus.textContent = "在线排行榜暂时不可用，本地练习不受影响。";
+    elements.completionLeaderboardStatus.classList.remove("success");
+    elements.completionSubmitBtn.disabled = true;
+    return;
+  }
+
+  const savedName = localStorage.getItem("playerName");
+
+  if (savedName) {
+    await submitScoreWithName(savedName, false);
+  } else {
+    showNicknameModal();
+  }
+
+  updateCompletionSubmitState();
+}
+
+function updateCompletionSubmitState() {
+  if (!state.lastResult) return;
+
+  const minimumAccuracy = getMinimumAccuracy(state.lastResult.difficulty);
+  const canSubmit = state.lastResult.accuracy >= minimumAccuracy && isSupabaseConfigured();
+
+  elements.completionLeaderboardStatus.classList.toggle("success", canSubmit);
+
+  if (state.scoreSubmitted) {
+    elements.completionLeaderboardStatus.textContent = "已经提交到排行榜！";
+    elements.completionSubmitBtn.textContent = "已提交";
+    elements.completionSubmitBtn.disabled = true;
+    return;
+  }
+
+  if (state.submitting) {
+    elements.completionLeaderboardStatus.textContent = "正在提交到排行榜...";
+    elements.completionSubmitBtn.textContent = "提交中...";
+    elements.completionSubmitBtn.disabled = true;
+    return;
+  }
+
+  if (state.lastResult.accuracy < minimumAccuracy) {
+    elements.completionLeaderboardStatus.textContent = "当前准确率未达到排行榜要求，继续练习吧！";
+    elements.completionSubmitBtn.textContent = "提交排行榜";
+    elements.completionSubmitBtn.disabled = true;
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
+    elements.completionLeaderboardStatus.textContent = "在线排行榜暂时不可用，本地练习不受影响。";
+    elements.completionSubmitBtn.textContent = "提交排行榜";
+    elements.completionSubmitBtn.disabled = true;
+    return;
+  }
+
+  elements.completionLeaderboardStatus.textContent = "可以提交到排行榜！";
+  elements.completionSubmitBtn.textContent = "提交排行榜";
+  elements.completionSubmitBtn.disabled = false;
+}
+
+function loadPersonalBests() {
+  return readLocalStorageJson(STORAGE_KEYS.personalBests, {});
+}
+
+function savePersonalBests(data) {
+  writeLocalStorageJson(STORAGE_KEYS.personalBests, data);
+}
+
+function updatePersonalBest(difficulty, wpm, accuracy) {
+  const personalBests = loadPersonalBests();
+  const currentBest = personalBests[difficulty] || { wpm: 0, accuracy: 0 };
+  const roundedWpm = Math.round(Number(wpm) || 0);
+  const roundedAccuracy = Number(accuracy) || 0;
+  const isNewBestWpm = roundedWpm > (Number(currentBest.wpm) || 0);
+
+  personalBests[difficulty] = {
+    wpm: Math.max(Number(currentBest.wpm) || 0, roundedWpm),
+    accuracy: Math.max(Number(currentBest.accuracy) || 0, roundedAccuracy)
+  };
+
+  savePersonalBests(personalBests);
+  renderPersonalProgress();
+  return isNewBestWpm;
+}
+
+function renderPersonalProgress(currentStats = getStats()) {
+  const personalBests = loadPersonalBests();
+  const currentBest = personalBests[state.difficulty] || { wpm: 0, accuracy: 0 };
+  const bestWpm = Math.round(Number(currentBest.wpm) || 0);
+  const bestAccuracy = Math.round(Number(currentBest.accuracy) || 0);
+  const currentWpm = Number(currentStats.wpm) || 0;
+
+  elements.currentBestWpm.textContent = bestWpm;
+  elements.currentBestAccuracy.textContent = `${bestAccuracy}%`;
+  elements.neededWpmText.textContent = getNeededWpmText(bestWpm, currentWpm);
+}
+
+function getNeededWpmText(bestWpm, currentWpm) {
+  if (!bestWpm) {
+    return "完成一次练习建立纪录";
+  }
+
+  if (currentWpm > bestWpm) {
+    return "已经超过纪录！";
+  }
+
+  return `还差 ${Math.max(1, Math.ceil(bestWpm - currentWpm + 0.01))} WPM`;
+}
+
+function recordMistypedChar(targetChar, typedChar) {
+  if (!isRecordableTypedCharacter(typedChar)) return;
+
+  const mistypedChars = loadMistypedChars();
+  mistypedChars[targetChar] = (Number(mistypedChars[targetChar]) || 0) + 1;
+  saveMistypedChars(mistypedChars);
+  renderMistypedChars();
+}
+
+function loadMistypedChars() {
+  return readLocalStorageJson(STORAGE_KEYS.mistypedChars, {});
+}
+
+function saveMistypedChars(data) {
+  writeLocalStorageJson(STORAGE_KEYS.mistypedChars, data);
+}
+
+function getTopMistypedChars(limit = 5) {
+  return Object.entries(loadMistypedChars())
+    .filter(([, count]) => Number(count) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]) || formatMistypedCharacter(a[0]).localeCompare(formatMistypedCharacter(b[0])))
+    .slice(0, limit);
+}
+
+function renderMistypedChars() {
+  const topMistypedChars = getTopMistypedChars();
+  elements.mistypedList.innerHTML = "";
+
+  if (!topMistypedChars.length) {
+    const item = document.createElement("li");
+    item.textContent = "暂无错字，继续保持！";
+    elements.mistypedList.append(item);
+    return;
+  }
+
+  topMistypedChars.forEach(([character, count]) => {
+    const item = document.createElement("li");
+    item.textContent = `${formatMistypedCharacter(character)} - ${count} 次`;
+    elements.mistypedList.append(item);
+  });
+}
+
+function resetLocalProgressData() {
+  const confirmed = window.confirm("确定要重置个人数据吗？这会清空个人最佳纪录和错字统计，但不会影响在线排行榜。");
+  if (!confirmed) return;
+
+  localStorage.removeItem(STORAGE_KEYS.personalBests);
+  localStorage.removeItem(STORAGE_KEYS.mistypedChars);
+  localStorage.removeItem(STORAGE_KEYS.streak);
+  elements.personalBestNotice.hidden = true;
+  renderPersonalProgress();
+  renderMistypedChars();
+  showFeedback("个人数据已重置。");
+}
+
+function readLocalStorageJson(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocalStorageJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn("Could not save local progress:", error);
+  }
+}
+
+function formatMistypedCharacter(character) {
+  return character === " " ? "Space" : character;
+}
+
+function isRecordableTypedCharacter(character) {
+  return typeof character === "string"
+    && character.length === 1
+    && character !== "\n"
+    && character !== "\t"
+    && character !== "\r";
 }
 
 function buildScoreResult() {
@@ -557,6 +840,7 @@ async function submitScoreWithName(displayName, isAutomatic) {
   elements.submitScoreBtn.disabled = true;
   elements.submitScoreBtn.textContent = isAutomatic ? "自动提交中..." : "提交中...";
   elements.submitMessage.textContent = isAutomatic ? "正在使用已保存的名称自动提交成绩..." : "正在提交到在线排行榜...";
+  updateCompletionSubmitState();
 
   try {
     localStorage.setItem("playerName", displayName);
@@ -579,6 +863,7 @@ async function submitScoreWithName(displayName, isAutomatic) {
     elements.submitFields.hidden = true;
     elements.submitScoreBtn.textContent = "已提交";
     elements.submitMessage.textContent = "提交成功！你的成绩已经进入在线排行榜。";
+    updateCompletionSubmitState();
 
     state.leaderboardDifficulty = state.difficulty;
     updateLeaderboardFilterButtons();
@@ -590,8 +875,10 @@ async function submitScoreWithName(displayName, isAutomatic) {
     elements.submitScoreBtn.disabled = false;
     elements.submitScoreBtn.textContent = "提交成绩";
     elements.submitMessage.textContent = "提交失败，可能网络或后端暂时不可用。练习和本地最佳记录仍然正常。";
+    updateCompletionSubmitState();
   } finally {
     state.submitting = false;
+    updateCompletionSubmitState();
   }
 }
 
@@ -882,14 +1169,6 @@ function getElapsedSeconds() {
   if (state.completed) return state.timeUsed;
   if (!state.startedAt) return 0;
   return Math.max(1, Math.floor((Date.now() - state.startedAt) / 1000));
-}
-
-function getBestWpm() {
-  return Number(localStorage.getItem(STORAGE_KEYS.bestWpm)) || 0;
-}
-
-function getBestAccuracy() {
-  return Number(localStorage.getItem(STORAGE_KEYS.bestAccuracy)) || 0;
 }
 
 startApp();
